@@ -79,14 +79,36 @@
   .snippet code { flex:1; min-width:300px; overflow-x:auto; white-space:nowrap; padding:9px 11px; display:block }
   .muted { color:var(--mut); font-size:12px }
   .milestone { color:#f0b72f; margin-left:6px }
+  .topbar { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap }
+  .search-btn { background:linear-gradient(90deg,#1f6feb,#8957e5); border:0; color:#fff; font-weight:650; padding:10px 17px; border-radius:8px; box-shadow:0 5px 18px #1f6feb44; white-space:nowrap }
+  .search-btn:hover { filter:brightness(1.15); border:0 }
+  .search-btn kbd { background:#ffffff22; border-color:#ffffff33; color:#fff; margin-left:5px }
+  #modal { position:fixed; inset:0; background:#010409cc; backdrop-filter:blur(6px); z-index:100; display:none; align-items:flex-start; justify-content:center; padding:8vh 16px }
+  .modal-box { width:min(780px,100%); max-height:80vh; overflow:auto; background:var(--card); border:1px solid #58a6ff66; border-radius:13px; padding:18px; box-shadow:0 24px 80px #000a }
+  .modal-head { display:flex; gap:9px; align-items:center; margin-bottom:10px; flex-wrap:wrap }
+  .modal-head input { flex:1; min-width:220px; font-size:15px; padding:10px 12px }
+  .scope { display:inline-flex; gap:3px; background:#0d1117; border:1px solid var(--line); border-radius:7px; padding:2px }
+  .scope button { border:0; background:transparent; color:var(--mut); padding:5px 10px; font-size:12px; border-radius:5px }
+  .scope button.on { background:#1f6feb; color:#fff }
+  .res { display:grid; grid-template-columns:1fr auto; gap:10px; padding:9px 12px; border-bottom:1px solid #21262d; cursor:pointer; align-items:center }
+  .res:hover { background:#1c2634 }
+  .res .n { color:#79c0ff; font-weight:600; font-size:13px }
+  .res .d { color:var(--mut); font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:520px }
+  .res .s { text-align:right; font-size:12px; font-variant-numeric:tabular-nums; white-space:nowrap }
+  .res .tag { font-size:10px; color:var(--purple); border:1px solid #a371f755; border-radius:10px; padding:0 6px; margin-left:6px }
   @media (max-width:700px) { .brow { grid-template-columns:minmax(100px,1fr) 1fr 60px } .desc { display:none } th:nth-child(5),td:nth-child(5) { display:none } }
 </style>
 </head>
 <body>
 <div id="tip"></div>
 <div class="wrap">
-  <h1><a href="./">@mrfentmen · npm download tracker</a></h1>
-  <div class="sub" id="updated"></div>
+  <div class="topbar">
+    <div>
+      <h1><a href="./">@mrfentmen · npm download tracker</a></h1>
+      <div class="sub" id="updated"></div>
+    </div>
+    <button class="search-btn" onclick="openSearch()">🔍 Search datasets <kbd>/</kbd></button>
+  </div>
   <div id="error"></div>
   <div id="live"><span class="dot"></span><strong>LIVE — collecting from npm</strong> <span id="liveText"></span><div class="progress"><div id="liveFill"></div></div></div>
 
@@ -149,6 +171,18 @@
       <div class="snippet"><code id="dBadgeCode"></code><button class="primary" onclick="copyBadge()">Copy</button></div>
       <div style="margin-top:14px"><img id="dBadgeImg" alt="weekly downloads badge"></div>
     </div>
+  </div>
+</div>
+
+<div id="modal" onclick="if(event.target===this)closeSearch()">
+  <div class="modal-box">
+    <div class="modal-head">
+      <input type="search" id="sInput" placeholder="Search names and descriptions…" autocomplete="off">
+      <span class="scope" id="sScope"><button data-s="local" class="on">My packages</button><button data-s="npm">All npm</button></span>
+      <button onclick="closeSearch()">Close <kbd>esc</kbd></button>
+    </div>
+    <div class="muted" id="sMeta" style="margin-bottom:8px"></div>
+    <div id="sResults"><div class="muted" style="padding:14px">Type to search across your catalog — or switch to "All npm" to search the whole registry.</div></div>
   </div>
 </div>
 
@@ -363,8 +397,74 @@ $('more').addEventListener('click', () => {
   $('rows').insertAdjacentHTML('beforeend', filtered.slice(limit - 200, limit).map(rowHtml).join(''))
   if (filtered.length <= limit) $('more').style.display = 'none'
 })
+/* ---------------- search ---------------- */
+let searchScope = 'local', searchTimer = null, searchSeq = 0
+const SEARCH_HINT = 'Type to search across your catalog — or switch to "All npm" to search the whole registry.'
+
+function renderSearchRows(items) {
+  if (!items.length) { $('sResults').innerHTML = '<div class="muted" style="padding:14px">No matches</div>'; return }
+  $('sResults').innerHTML = items.map((x) => {
+    if (x.external) return `<div class="res" data-ext="${x.name}"><div><span class="n">${x.name}</span><span class="tag">npm</span>${x.tracked ? '<span class="tag" style="color:#3fb950;border-color:#3fb95055">tracked</span>' : ''}<div class="d">${(x.description || '').replace(/"/g, '&quot;')}</div></div><div class="s">v${x.version || '?'}<br><span class="muted">open ↗</span></div></div>`
+    const p = x.p
+    return `<div class="res" data-name="${encodeURIComponent(p.name)}"><div><span class="n">${p.name}</span>${p.mcp ? '<span class="tag">MCP</span>' : ''}<div class="d">${(p.description || '—').replace(/"/g, '&quot;')}</div></div><div class="s">${nf.format(p.weekly)}/wk<br><span class="muted">${nf.format(p.allTime)} all-time</span></div></div>`
+  }).join('')
+}
+async function runSearch() {
+  const q = $('sInput').value.trim().toLowerCase()
+  if (!q) { $('sMeta').textContent = ''; $('sResults').innerHTML = `<div class="muted" style="padding:14px">${SEARCH_HINT}</div>`; return }
+  if (searchScope === 'local') {
+    const scored = DATA ? DATA.packages.map((p) => {
+      const n = p.name.toLowerCase()
+      const score = n === q ? 100 : n.startsWith(q) ? 80 : n.includes(q) ? 60 : (p.description || '').toLowerCase().includes(q) ? 30 : 0
+      return { p, score }
+    }).filter((x) => x.score > 0).sort((a, b) => b.score - a.score || b.p.weekly - a.p.weekly).slice(0, 30) : []
+    $('sMeta').textContent = `${scored.length} results in your catalog`
+    renderSearchRows(scored)
+    return
+  }
+  const seq = ++searchSeq
+  $('sMeta').textContent = 'Searching npm registry…'
+  try {
+    const r = await fetch('https://registry.npmjs.org/-/v1/search?text=' + encodeURIComponent(q) + '&size=20')
+    const j = await r.json()
+    if (seq !== searchSeq) return
+    const tracked = DATA ? new Set(DATA.packages.map((p) => p.name)) : new Set()
+    const items = (j.objects || []).map((o) => ({
+      name: o.package.name, description: o.package.description || '', version: o.package.version,
+      external: true, tracked: tracked.has(o.package.name),
+    }))
+    $('sMeta').textContent = `${items.length} npm results · click opens npmjs.com`
+    renderSearchRows(items)
+  } catch (e) {
+    if (seq === searchSeq) $('sMeta').textContent = 'npm search failed: ' + e.message
+  }
+}
+function openSearch() { $('modal').style.display = 'flex'; $('sInput').value = ''; $('sInput').focus(); $('sMeta').textContent = ''; $('sResults').innerHTML = `<div class="muted" style="padding:14px">${SEARCH_HINT}</div>` }
+function closeSearch() { $('modal').style.display = 'none' }
+$('sInput').addEventListener('input', () => {
+  if (searchScope === 'npm') { clearTimeout(searchTimer); searchTimer = setTimeout(runSearch, 250) }
+  else runSearch()
+})
+$('sScope').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-s]')
+  if (!b) return
+  searchScope = b.dataset.s
+  for (const x of $('sScope').querySelectorAll('button')) x.classList.toggle('on', x === b)
+  $('sInput').placeholder = searchScope === 'npm' ? 'Search all npm packages…' : 'Search names and descriptions…'
+  searchSeq++
+  runSearch()
+})
+$('sResults').addEventListener('click', (e) => {
+  const row = e.target.closest('.res')
+  if (!row) return
+  if (row.dataset.ext) { window.open('https://www.npmjs.com/package/' + row.dataset.ext, '_blank', 'noopener'); return }
+  const p = DATA && DATA.packages.find((x) => encodeURIComponent(x.name) === row.dataset.name)
+  if (p) { closeSearch(); goDetail(p) }
+})
 document.addEventListener('keydown', (e) => {
-  if (e.key === '/' && document.activeElement.tagName !== 'INPUT') { e.preventDefault(); $('q').focus() }
+  if (e.key === 'Escape' && $('modal').style.display !== 'none') { closeSearch(); return }
+  if ((e.key === 'k' && (e.metaKey || e.ctrlKey)) || (e.key === '/' && document.activeElement.tagName !== 'INPUT')) { e.preventDefault(); openSearch(); return }
+  if (e.key === 'Enter' && $('modal').style.display !== 'none') { const first = $('sResults').querySelector('.res'); if (first) first.click(); return }
   if (e.key === 'Escape' && $('detail').style.display !== 'none') goOverview()
 })
 window.addEventListener('popstate', route)

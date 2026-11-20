@@ -30,6 +30,7 @@ Permissions block in the workflow) — no secrets to configure.
 
 ## Dashboard
 
+- **Search**: click **🔍 Search datasets** (or press `/` / `Ctrl+K`) to search all tracked packages by name/description, with stats and one-click detail pages. Switch to **All npm** to search the entire npm registry from the same box.
 - **Live feed**: while the collector runs it publishes `data.json` + `status.json` every 100 packages; the page auto-refreshes every 10 seconds with a progress banner, so you can watch the totals grow.
 - **Overview**: total packages, last-7-day / last-31-day / all-time downloads, MCP split, 52-week history chart, top-20 leaderboard.
 - **Table**: search by name/description, sort by any metric, toggle MCP-only, sparkline per package.

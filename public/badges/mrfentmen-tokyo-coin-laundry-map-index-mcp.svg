@@ -1,1 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="136" height="20" role="img" aria-label="weekly downloads: 202"><rect width="92" height="20" fill="#555"/><rect x="92" width="44" height="20" fill="#1f6feb"/><g fill="#fff" font-family="Verdana,Geneva,sans-serif" font-size="11" text-anchor="middle"><text x="46" y="14">weekly dl</text><text x="114" y="14">202</text></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="136" height="20" role="img" aria-label="weekly downloads: 202">
+<linearGradient id="s" x2="0" y2="100%"><stop offset="0" stop-color="#bbb" stop-opacity=".1"/><stop offset="1" stop-opacity=".1"/></linearGradient>
+<clipPath id="r"><rect width="136" height="20" rx="3"/></clipPath>
+<g clip-path="url(#r)"><rect width="92" height="20" fill="#555"/><rect x="92" width="44" height="20" fill="#1f6feb"/><rect width="136" height="20" fill="url(#s)"/></g>
+<g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11"><text x="46" y="14">weekly dl</text><text x="114" y="14">202</text></g>
+</svg>

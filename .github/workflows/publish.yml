@@ -1,0 +1,34 @@
+name: Publish current snapshot
+
+# Publishes the data already committed in public/ immediately — no collection.
+# Used for the first publish and whenever you want to refresh the hosted site
+# from the latest local pull without waiting for the weekly full collection.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['public/**']
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,6 @@
+# Local checkpoint state (large; re-derived on every weekly pull)
+state.json
+
+# Editor / OS cruft
+.DS_Store
+node_modules/

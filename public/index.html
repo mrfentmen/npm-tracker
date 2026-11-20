@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>@mrfentmen — npm download tracker</title>
+<style>
+  :root { color-scheme: dark; --bg:#0d1117; --card:#161b22; --line:#30363d; --fg:#e6edf3; --mut:#8b949e; --accent:#2f81f7; --green:#3fb950; --purple:#a371f7; --red:#f85149 }
+  * { box-sizing:border-box }
+  body { margin:0; background:radial-gradient(900px 380px at 12% -8%,#15305c55,transparent),radial-gradient(700px 300px at 88% -12%,#4b1d6b44,transparent),var(--bg); color:var(--fg); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif }
+  .wrap { max-width:1200px; margin:0 auto; padding:28px 20px 60px }
+  h1 { margin:0 0 4px; font-size:27px; letter-spacing:-.5px; background:linear-gradient(90deg,#e6edf3,#79c0ff 60%,#a371f7); -webkit-background-clip:text; background-clip:text; color:transparent }
+  h1 a { text-decoration:none; color:inherit }
+  .sub { color:var(--mut); font-size:13px; margin-bottom:18px }
+  #error { display:none; color:#ff7b72; background:#3d1418; border:1px solid #6e2733; padding:14px; border-radius:8px; margin-bottom:14px }
+  #live { display:none; background:linear-gradient(90deg,#0d2a1f,#10231d); border:1px solid #238636; border-radius:9px; padding:10px 14px; margin-bottom:16px; font-size:13px; box-shadow:0 0 24px #23863622 }
+  .dot { display:inline-block; width:8px; height:8px; background:#3fb950; border-radius:50%; margin-right:8px; animation:pulse 1.2s infinite; box-shadow:0 0 10px #3fb950 }
+  @keyframes pulse { 50% { opacity:.25; transform:scale(.75) } }
+  .progress { height:6px; background:#21262d; border-radius:4px; margin-top:8px; overflow:hidden }
+  .progress > div { height:100%; background:linear-gradient(90deg,#238636,#3fb950,#79c0ff); background-size:200% 100%; animation:slide 2s linear infinite; transition:width .6s ease; border-radius:4px }
+  @keyframes slide { to { background-position:-200% 0 } }
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:12px; margin-bottom:16px }
+  .card { background:linear-gradient(160deg,#1b212b,#161b22); border:1px solid var(--line); border-radius:11px; padding:16px 18px; transition:border-color .2s,transform .2s }
+  .card:hover { border-color:#58a6ff66; transform:translateY(-2px) }
+  .card .label { color:var(--mut); font-size:11px; text-transform:uppercase; letter-spacing:.7px }
+  .card .value { font-size:27px; font-weight:750; margin-top:4px; font-variant-numeric:tabular-nums; letter-spacing:-.5px }
+  .card .hint { color:var(--mut); font-size:12px; margin-top:2px }
+  .panel { background:var(--card); border:1px solid var(--line); border-radius:11px; padding:18px; margin-bottom:16px }
+  .panel h2 { font-size:15px; margin:0 0 12px; font-weight:650; display:flex; align-items:center; gap:10px; flex-wrap:wrap }
+  .chart { width:100%; height:180px; display:block; overflow:visible; cursor:crosshair }
+  .chart .bar { opacity:.85; transition:opacity .12s }
+  .chart .bar:hover, .chart .bar.hot { fill:#79c0ff; opacity:1 }
+  .chart .axis { fill:var(--mut); font-size:9px }
+  .axis-note { color:var(--mut); font-size:11px; margin-top:6px }
+  .toggle { display:inline-flex; gap:3px; background:#0d1117; border:1px solid var(--line); border-radius:7px; padding:2px }
+  .toggle button { border:0; background:transparent; color:var(--mut); padding:3px 9px; font-size:11px; border-radius:5px }
+  .toggle button.on { background:#1f6feb; color:#fff }
+  #tip { position:fixed; z-index:99; display:none; pointer-events:none; background:#010409f2; border:1px solid #58a6ff77; border-radius:7px; padding:7px 10px; font-size:12px; box-shadow:0 8px 24px #0009; white-space:nowrap }
+  #tip b { color:#79c0ff }
+  .bars { display:flex; flex-direction:column; gap:7px }
+  .brow { display:grid; grid-template-columns:minmax(160px,230px) 1fr 72px; align-items:center; gap:10px; font-size:12px }
+  .brow .name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+  .brow .track { background:#21262d; border-radius:4px; height:10px; overflow:hidden }
+  .brow .fill { height:100%; background:linear-gradient(90deg,#1f6feb,#a371f7); border-radius:4px; transition:width .8s ease }
+  .brow .num { text-align:right; color:var(--mut); font-variant-numeric:tabular-nums }
+  .movers { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:8px }
+  .mover { background:#0d1117; border:1px solid var(--line); border-radius:8px; padding:9px 11px; cursor:pointer; transition:border-color .2s,transform .2s }
+  .mover:hover { border-color:#3fb95088; transform:translateY(-1px) }
+  .mover .n { font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#79c0ff }
+  .mover .m { font-size:12px; font-variant-numeric:tabular-nums; margin-top:2px }
+  .controls { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:12px }
+  input[type=search], select { background:#0d1117; color:var(--fg); border:1px solid var(--line); border-radius:7px; padding:8px 10px; font-size:13px }
+  input[type=search] { flex:1; min-width:220px }
+  label.chk { color:var(--mut); font-size:13px; display:flex; align-items:center; gap:6px; cursor:pointer }
+  kbd { background:#21262d; border:1px solid var(--line); border-bottom-width:2px; border-radius:4px; padding:0 5px; font-size:11px; color:var(--mut) }
+  table { width:100%; border-collapse:collapse; font-size:13px }
+  th { text-align:left; color:var(--mut); font-weight:500; font-size:11px; text-transform:uppercase; letter-spacing:.5px; padding:8px 10px; border-bottom:1px solid var(--line); white-space:nowrap }
+  td { padding:8px 10px; border-bottom:1px solid #21262d; font-variant-numeric:tabular-nums }
+  td.name-cell { max-width:300px }
+  tbody tr { cursor:pointer; transition:background .12s }
+  tbody tr:hover { background:#1c2634 }
+  .pkg { color:var(--accent); font-weight:600 }
+  .desc { color:var(--mut); font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:280px }
+  .pill { font-size:10px; color:var(--green); border:1px solid #2ea04355; background:#2ea04318; border-radius:20px; padding:1px 7px; margin-left:6px }
+  .up { color:var(--green) } .down { color:var(--red) } .flat { color:var(--mut) }
+  .numcol { text-align:right; white-space:nowrap }
+  button { background:#21262d; color:var(--fg); border:1px solid var(--line); border-radius:7px; padding:8px 14px; cursor:pointer; font-size:13px }
+  button:hover { border-color:#8b949e }
+  button.primary { background:#1f6feb; border-color:#1f6feb; color:#fff }
+  .more { display:block; margin:16px auto 0 }
+  .back { margin-bottom:14px }
+  .detail-head { display:flex; flex-wrap:wrap; gap:12px; align-items:flex-start; justify-content:space-between }
+  .detail-head h2 { font-size:22px; margin:0; word-break:break-all; background:none; color:var(--fg); -webkit-text-fill-color:var(--fg) }
+  .detail-head .meta { color:var(--mut); font-size:12px; margin-top:4px; max-width:780px }
+  .detail-head a { color:var(--accent) }
+  code { background:#0d1117; border:1px solid var(--line); border-radius:6px; padding:2px 6px; font-size:12px }
+  .snippet { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:10px }
+  .snippet code { flex:1; min-width:300px; overflow-x:auto; white-space:nowrap; padding:9px 11px; display:block }
+  .muted { color:var(--mut); font-size:12px }
+  .milestone { color:#f0b72f; margin-left:6px }
+  @media (max-width:700px) { .brow { grid-template-columns:minmax(100px,1fr) 1fr 60px } .desc { display:none } th:nth-child(5),td:nth-child(5) { display:none } }
+</style>
+</head>
+<body>
+<div id="tip"></div>
+<div class="wrap">
+  <h1><a href="./">@mrfentmen · npm download tracker</a></h1>
+  <div class="sub" id="updated"></div>
+  <div id="error"></div>
+  <div id="live"><span class="dot"></span><strong>LIVE — collecting from npm</strong> <span id="liveText"></span><div class="progress"><div id="liveFill"></div></div></div>
+
+  <div id="overview">
+    <div class="cards" id="cards"></div>
+    <div class="panel">
+      <h2>All packages — weekly downloads <span class="toggle" id="siteRange"><button data-n="13">13w</button><button data-n="26">26w</button><button data-n="52" class="on">52w</button></span></h2>
+      <svg class="chart" id="siteChart" viewBox="0 0 1000 180" preserveAspectRatio="none"></svg>
+      <div class="axis-note" id="siteAxis"></div>
+    </div>
+    <div class="panel">
+      <h2>Top movers <span class="muted">— biggest gain vs previous 4-week average</span></h2>
+      <div class="movers" id="movers"></div>
+    </div>
+    <div class="panel">
+      <h2>Top 20 packages — last 7 days</h2>
+      <div class="bars" id="topBars"></div>
+    </div>
+    <div class="panel">
+      <h2>All packages <span class="muted" id="shown"></span></h2>
+      <div class="controls">
+        <input type="search" id="q" placeholder="Search name or description…  (press /)">
+        <select id="sort">
+          <option value="weekly">Sort: weekly ↓</option>
+          <option value="momentum">Sort: momentum ↓</option>
+          <option value="allTime">Sort: all-time ↓</option>
+          <option value="monthly">Sort: 31 days ↓</option>
+          <option value="name">Sort: name ↑</option>
+        </select>
+        <label class="chk"><input type="checkbox" id="mcpOnly" checked> MCP servers only</label>
+      </div>
+      <table>
+        <thead><tr><th>#</th><th>Package</th><th class="numcol">All time</th><th class="numcol">31 days</th><th class="numcol">7 days</th><th>Trend</th><th>Last 31 days</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <button class="more" id="more">Show more</button>
+    </div>
+  </div>
+
+  <div id="detail" style="display:none">
+    <button class="back" onclick="goOverview()">← Back to all packages <kbd>esc</kbd></button>
+    <div class="panel">
+      <div class="detail-head">
+        <div>
+          <h2 id="dName"></h2>
+          <div class="meta" id="dMeta"></div>
+        </div>
+        <a id="dNpm" target="_blank" rel="noopener">View on npm ↗</a>
+      </div>
+      <div class="cards" id="dCards" style="margin-top:16px"></div>
+    </div>
+    <div class="panel">
+      <h2>Weekly downloads <span class="toggle" id="detailRange"><button data-n="13">13w</button><button data-n="26">26w</button><button data-n="52" class="on">52w</button></span></h2>
+      <svg class="chart" id="dChart" viewBox="0 0 1000 180" preserveAspectRatio="none"></svg>
+      <div class="axis-note" id="dAxis"></div>
+    </div>
+    <div class="panel" id="badgePanel">
+      <h2>Weekly badge for this package's npm README</h2>
+      <div class="muted">Paste this into the package's README.md — it updates after each weekly pull.</div>
+      <div class="snippet"><code id="dBadgeCode"></code><button class="primary" onclick="copyBadge()">Copy</button></div>
+      <div style="margin-top:14px"><img id="dBadgeImg" alt="weekly downloads badge"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const nf = new Intl.NumberFormat('en-US')
+const $ = (id) => document.getElementById(id)
+let DATA, filtered = [], limit = 100, current = null, currentName = null
+let siteRange = 52, detailRange = 52
+const shownValues = new Map()
+const POLL_MS = 10000
+
+/** Week-over-week momentum: last 7d vs the average of the previous 4 weeks. */
+function momentum(p) {
+  const h = p.history || []
+  if (h.length < 5) return 0
+  let prev = 0
+  for (let i = h.length - 5; i < h.length - 1; i++) prev += h[i].downloads
+  prev /= 4
+  return prev > 0 ? (p.weekly - prev) / prev * 100 : 0
+}
+function momentumHtml(p) {
+  const m = momentum(p)
+  if (!p.history || p.history.length < 5) return '<span class="flat">—</span>'
+  const cls = m > 2 ? 'up' : m < -2 ? 'down' : 'flat'
+  return `<span class="${cls}">${m >= 0 ? '▲' : '▼'} ${Math.abs(m).toFixed(0)}%</span>`
+}
+function setNum(el, value, key) {
+  const from = shownValues.get(key) ?? 0
+  shownValues.set(key, value)
+  const start = performance.now(), dur = 700
+  function step(now) {
+    const k = Math.min(1, (now - start) / dur), e = 1 - Math.pow(1 - k, 3)
+    el.textContent = nf.format(Math.round(from + (value - from) * e))
+    if (k < 1) requestAnimationFrame(step)
+  }
+  requestAnimationFrame(step)
+}
+function sparkline(values, w = 88, h = 24) {
+  if (!values || !values.length) return ''
+  const max = Math.max(1, ...values), min = Math.min(...values)
+  const pts = values.map((v, i) => `${(i / Math.max(1, values.length - 1) * w).toFixed(1)},${(h - 2 - (v - min) / (max - min || 1) * (h - 4)).toFixed(1)}`).join(' ')
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-label="31-day trend"><polyline points="${pts}" fill="none" stroke="#3fb950" stroke-width="1.5"/></svg>`
+}
+const tip = $('tip')
+function barChart(svg, axis, points) {
+  if (!points.length) return
+  const W = 1000, H = 180
+  const max = Math.max(1, ...points.map((p) => p.downloads))
+  const bw = W / points.length
+  const grad = svg.id + '-grad'
+  svg.innerHTML = `<defs><linearGradient id="${grad}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#79c0ff"/><stop offset="1" stop-color="#1f6feb"/></linearGradient></defs>` +
+    points.map((p, i) => `<rect class="bar" data-i="${i}" x="${(i * bw + 0.7).toFixed(2)}" y="${(H - (p.downloads / max) * (H - 18)).toFixed(2)}" width="${Math.max(0.8, bw - 1.4).toFixed(2)}" height="${((p.downloads / max) * (H - 18)).toFixed(2)}" rx="1" fill="url(#${grad})"/>`).join('') +
+    `<text class="axis" x="2" y="12">${nf.format(max)} / week</text>`
+  axis.textContent = `${points[0].start} → ${points[points.length - 1].end || points[points.length - 1].start} · hover for exact numbers`
+  svg.onmousemove = (e) => {
+    const rect = svg.getBoundingClientRect()
+    const i = Math.max(0, Math.min(points.length - 1, Math.floor((e.clientX - rect.left) / rect.width * points.length)))
+    const p = points[i]
+    tip.style.display = 'block'
+    tip.style.left = Math.min(window.innerWidth - 220, e.clientX + 14) + 'px'
+    tip.style.top = Math.max(8, e.clientY - 42) + 'px'
+    const prev = i > 0 ? points[i - 1].downloads : null
+    const delta = prev ? `<br>vs prev week: <b class="${p.downloads >= prev ? 'up' : 'down'}">${p.downloads >= prev ? '+' : ''}${nf.format(p.downloads - prev)}</b>` : ''
+    tip.innerHTML = `<b>${p.start}${p.end ? ' → ' + p.end : ''}</b><br>${nf.format(p.downloads)} downloads${delta}`
+    for (const bar of svg.querySelectorAll('.bar')) bar.classList.toggle('hot', +bar.dataset.i === i)
+  }
+  svg.onmouseleave = () => { tip.style.display = 'none'; for (const bar of svg.querySelectorAll('.bar')) bar.classList.remove('hot') }
+}
+function renderCards() {
+  const t = DATA.totals
+  const other = { monthly: t.monthly - t.mcp.monthly }
+  const milestone = t.allTime >= 2000000 ? '<span class="milestone">🎉 2M CLUB</span>' : ''
+  $('cards').innerHTML = [
+    ['kpi-pkgs', 'Packages tracked', t.packages, `${nf.format(t.mcp.packages)} MCP · snapshot at pull start`],
+    ['kpi-week', 'Downloads · last 7 days', t.weekly, `${nf.format(t.mcp.weekly)} from MCP servers`],
+    ['kpi-month', 'Downloads · last 31 days', t.monthly, `${nf.format(other.monthly)} non-MCP`],
+    ['kpi-all', 'Downloads · all time', t.allTime, `~${nf.format(t.weekly)} per week now${milestone}`],
+  ].map(([key, l, v, h]) => `<div class="card"><div class="label">${l}</div><div class="value" data-key="${key}">0</div><div class="hint">${h}</div></div>`).join('')
+  for (const [key, , v] of [['kpi-pkgs', 0, t.packages], ['kpi-week', 0, t.weekly], ['kpi-month', 0, t.monthly], ['kpi-all', 0, t.allTime]]) {
+    setNum($('cards').querySelector(`[data-key="${key}"]`), v, key)
+  }
+}
+function renderTop() {
+  const top = [...DATA.packages].sort((a, b) => b.weekly - a.weekly).slice(0, 20)
+  if (!top.length) return
+  const max = Math.max(1, top[0].weekly)
+  $('topBars').innerHTML = top.map((p) =>
+    `<div class="brow" data-name="${encodeURIComponent(p.name)}"><span class="name">${p.name}</span><div class="track"><div class="fill" style="width:${(p.weekly / max * 100).toFixed(1)}%"></div></div><span class="num">${nf.format(p.weekly)}</span></div>`
+  ).join('')
+}
+function renderMovers() {
+  const movers = DATA.packages.filter((p) => p.history && p.history.length >= 5 && p.weekly > 20)
+    .sort((a, b) => momentum(b) - momentum(a)).slice(0, 8)
+  $('movers').innerHTML = movers.map((p) => `<div class="mover" data-name="${encodeURIComponent(p.name)}"><div class="n">${p.name}</div><div class="m">${nf.format(p.weekly)}/wk &nbsp; ${momentumHtml(p)}</div></div>`).join('') || '<span class="muted">Collecting history…</span>'
+}
+function rowHtml(p, i) {
+  return `<tr data-name="${encodeURIComponent(p.name)}">
+    <td class="numcol muted">${i + 1}</td>
+    <td class="name-cell"><span class="pkg">${p.name}</span>${p.mcp ? '<span class="pill">MCP</span>' : ''}<div class="desc" title="${(p.description || '').replace(/"/g, '&quot;')}">${p.description || '—'}</div></td>
+    <td class="numcol">${nf.format(p.allTime)}</td>
+    <td class="numcol">${nf.format(p.monthly)}</td>
+    <td class="numcol">${nf.format(p.weekly)}</td>
+    <td>${momentumHtml(p)}</td>
+    <td>${sparkline(p.daily)}</td>
+  </tr>`
+}
+function renderRows() {
+  const q = $('q').value.trim().toLowerCase()
+  const field = $('sort').value
+  filtered = DATA.packages.filter((p) => (!$('mcpOnly').checked || p.mcp) && (!q || p.name.toLowerCase().includes(q) || (p.description || '').toLowerCase().includes(q)))
+    .sort((a, b) => field === 'name' ? a.name.localeCompare(b.name) : field === 'momentum' ? momentum(b) - momentum(a) : b[field] - a[field])
+  $('shown').textContent = `— ${nf.format(filtered.length)} matching`
+  $('rows').innerHTML = filtered.slice(0, limit).map(rowHtml).join('')
+  $('more').style.display = filtered.length > limit ? 'block' : 'none'
+}
+function badgeSnippet(p) {
+  const base = location.href.split('#')[0].replace(/\/index\.html$/, '').replace(/\/$/, '') + '/badges/'
+  return `[![weekly downloads](${base}${p.badge})](https://www.npmjs.com/package/${p.name})`
+}
+function renderDetail(p) {
+  current = p
+  currentName = p.name
+  $('dName').textContent = p.name
+  $('dMeta').textContent = (p.description || 'No description') + (p.published ? ` · first published ${p.published}` : '') + ` · v${p.version || '?'}`
+  $('dNpm').href = 'https://www.npmjs.com/package/' + p.name
+  $('dCards').innerHTML = [
+    ['All-time', nf.format(p.allTime)], ['Last 31 days', nf.format(p.monthly)],
+    ['Last 7 days', nf.format(p.weekly)], ['Momentum', (momentum(p) >= 0 ? '+' : '') + momentum(p).toFixed(0) + '%'],
+  ].map(([l, v]) => `<div class="card"><div class="label">${l}</div><div class="value">${v}</div></div>`).join('')
+  barChart($('dChart'), $('dAxis'), p.history.slice(-detailRange))
+  $('dBadgeCode').textContent = badgeSnippet(p)
+  // Badge SVGs only exist after the collector finishes; don't trigger a 404
+  // while the dashboard is still in live-collection mode.
+  if ($('live').style.display === 'none') $('dBadgeImg').src = 'badges/' + p.badge
+}
+function showDetailInternal(p) {
+  $('overview').style.display = 'none'
+  $('detail').style.display = 'block'
+  renderDetail(p)
+  window.scrollTo(0, 0)
+}
+function showOverviewInternal() {
+  currentName = null
+  $('detail').style.display = 'none'
+  $('overview').style.display = 'block'
+}
+function goDetail(p) { history.pushState(null, '', '#pkg/' + encodeURIComponent(p.name)); showDetailInternal(p) }
+function goOverview() { history.pushState(null, '', location.pathname); showOverviewInternal(); window.scrollTo(0, 0) }
+function route() {
+  if (!DATA) return
+  const m = decodeURIComponent(location.hash).match(/^#pkg\/(.+)$/)
+  if (m) {
+    const p = DATA.packages.find((x) => x.name === m[1])
+    if (p) { showDetailInternal(p); return }
+  }
+  showOverviewInternal()
+}
+async function copyBadge() {
+  try { await navigator.clipboard.writeText($('dBadgeCode').textContent); $('tip').style.display = 'none'; alert('Badge markdown copied!') }
+  catch { alert('Copy failed — select the text manually.') }
+}
+function showLive(s) {
+  if (!s || s.phase === 'done') { $('live').style.display = 'none'; $('badgePanel').style.display = 'block'; return }
+  $('live').style.display = 'block'
+  $('badgePanel').style.display = 'none'
+  const pct = s.total ? Math.round(s.checked / s.total * 100) : 0
+  $('liveText').textContent = `${s.phase === 'scoped' ? 'scoped packages' : 'bulk packages'} — ${nf.format(s.checked)} / ${nf.format(s.total)} checked (${pct}%) · ${Math.round(s.elapsedSec / 60)} min elapsed`
+  $('liveFill').style.width = pct + '%'
+}
+async function refresh() {
+  try {
+    const bust = '?t=' + Date.now()
+    const [dr, sr] = await Promise.all([fetch('data.json' + bust), fetch('status.json' + bust).catch(() => null)])
+    if (!dr.ok) throw new Error('HTTP ' + dr.status)
+    DATA = await dr.json()
+    const s = sr && sr.ok ? await sr.json() : null
+    $('updated').textContent = `Updated ${new Date(DATA.generated).toUTCString()} · npm data window ${DATA.window.start} → ${DATA.window.end} · inventory snapshot: ${nf.format(DATA.totals.packages)} packages at pull start · refreshed weekly by GitHub Actions`
+    renderCards(); renderTop(); renderMovers(); renderRows()
+    barChart($('siteChart'), $('siteAxis'), DATA.aggregateHistory.slice(-siteRange))
+    showLive(s)
+    if (currentName) {
+      const p = DATA.packages.find((x) => x.name === currentName)
+      if (p) renderDetail(p)
+    } else route()
+    $('error').style.display = 'none'
+  } catch (e) {
+    $('error').style.display = 'block'
+    $('error').textContent = 'Could not load data.json (' + e.message + '). If testing locally, serve this folder with: python3 -m http.server -d public 8000'
+  }
+}
+for (const el of [$('rows'), $('topBars'), $('movers')]) {
+  el.addEventListener('click', (e) => {
+    const node = e.target.closest('[data-name]')
+    if (!node) return
+    const p = DATA.packages.find((x) => encodeURIComponent(x.name) === node.dataset.name)
+    if (p) goDetail(p)
+  })
+}
+for (const [id, getter, setter] of [['siteRange', () => siteRange, (v) => siteRange = v], ['detailRange', () => detailRange, (v) => detailRange = v]]) {
+  $(id).addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-n]')
+    if (!b) return
+    setter(+b.dataset.n)
+    for (const x of $(id).querySelectorAll('button')) x.classList.toggle('on', x === b)
+    if (id === 'siteRange' && DATA) barChart($('siteChart'), $('siteAxis'), DATA.aggregateHistory.slice(-siteRange))
+    if (id === 'detailRange' && current) barChart($('dChart'), $('dAxis'), current.history.slice(-detailRange))
+  })
+}
+for (const id of ['q', 'sort', 'mcpOnly']) $(id).addEventListener('input', () => { limit = 100; renderRows() })
+$('more').addEventListener('click', () => {
+  limit += 200
+  $('rows').insertAdjacentHTML('beforeend', filtered.slice(limit - 200, limit).map(rowHtml).join(''))
+  if (filtered.length <= limit) $('more').style.display = 'none'
+})
+document.addEventListener('keydown', (e) => {
+  if (e.key === '/' && document.activeElement.tagName !== 'INPUT') { e.preventDefault(); $('q').focus() }
+  if (e.key === 'Escape' && $('detail').style.display !== 'none') goOverview()
+})
+window.addEventListener('popstate', route)
+refresh()
+setInterval(() => { if (document.visibilityState === 'visible') refresh() }, POLL_MS)
+</script>
+</body>
+</html>

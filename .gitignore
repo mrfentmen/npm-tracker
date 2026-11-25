@@ -1,5 +1,6 @@
 # Local checkpoint state (large; re-derived on every weekly pull)
 state.json
+patch-state.json
 
 # Editor / OS cruft
 .DS_Store

@@ -2,7 +2,7 @@ name: Publish current snapshot
 
 # Publishes the data already committed in public/ immediately — no collection.
 # Used for the first publish and whenever you want to refresh the hosted site
-# from the latest local pull without waiting for the weekly full collection.
+# from the latest local pull without waiting for the daily full collection.
 on:
   workflow_dispatch:
   push:

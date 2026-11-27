@@ -5,7 +5,7 @@ maintained by `@mrfentmen` (5,600+ and counting), with a 52-week history per
 package and an embeddable weekly badge for each package's npm README.
 
 No server, no database, no API keys, no Cloudflare account. A GitHub Action
-pulls npm's public download API once a week and publishes the generated site.
+pulls npm's public download API once a day and publishes the generated site.
 
 ## What's here
 
@@ -15,7 +15,7 @@ pulls npm's public download API once a week and publishes the generated site.
 | `public/index.html` | The dashboard: headline totals, site-wide weekly chart, top-20, searchable/sortable table, per-package detail with weekly chart, badge generator. |
 | `public/data.json` | Generated data (published by the Action, not committed). |
 | `public/badges/*.svg` | Generated weekly-download badges, one per package. |
-| `.github/workflows/refresh.yml` | Runs the collector every Monday 06:17 UTC and deploys to Pages. |
+| `.github/workflows/refresh.yml` | Runs the collector every day at 06:17 UTC and deploys to Pages. |
 
 ## Setup (one-time)
 
@@ -23,7 +23,7 @@ pulls npm's public download API once a week and publishes the generated site.
 2. In the repo: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
 3. Open the **Actions** tab → **Weekly npm tracker refresh** → **Run workflow** for the first publish.
 4. Your site will be at `https://<your-username>.github.io/<repo>/`.
-5. After that it republishes itself automatically every Monday. You can also trigger it manually anytime with **Run workflow**.
+5. After that it republishes itself automatically every day at 06:17 UTC. You can also trigger it manually anytime with **Run workflow**.
 
 The Action uses GitHub's built-in `GITHUB_TOKEN` (already provisioned with the
 Permissions block in the workflow) — no secrets to configure.

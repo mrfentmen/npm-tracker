@@ -167,7 +167,7 @@
     </div>
     <div class="panel" id="badgePanel">
       <h2>Weekly badge for this package's npm README</h2>
-      <div class="muted">Paste this into the package's README.md — it updates after each weekly pull.</div>
+      <div class="muted">Paste this into the package's README.md — it updates after each daily pull.</div>
       <div class="snippet"><code id="dBadgeCode"></code><button class="primary" onclick="copyBadge()">Copy</button></div>
       <div style="margin-top:14px"><img id="dBadgeImg" alt="weekly downloads badge"></div>
     </div>
@@ -359,7 +359,7 @@ async function refresh() {
     if (!dr.ok) throw new Error('HTTP ' + dr.status)
     DATA = await dr.json()
     const s = sr && sr.ok ? await sr.json() : null
-    $('updated').textContent = `Updated ${new Date(DATA.generated).toUTCString()} · npm data window ${DATA.window.start} → ${DATA.window.end} · inventory snapshot: ${nf.format(DATA.totals.packages)} packages at pull start · refreshed weekly by GitHub Actions`
+    $('updated').textContent = `Updated ${new Date(DATA.generated).toUTCString()} · npm data window ${DATA.window.start} → ${DATA.window.end} · inventory snapshot: ${nf.format(DATA.totals.packages)} packages at pull start · refreshed daily by GitHub Actions`
     renderCards(); renderTop(); renderMovers(); renderRows()
     barChart($('siteChart'), $('siteAxis'), DATA.aggregateHistory.slice(-siteRange))
     showLive(s)

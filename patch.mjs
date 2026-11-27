@@ -184,6 +184,13 @@ await Promise.all(Array.from({ length: 2 }, async () => {
       await pace()
       const r1 = await get(`${DL}/point/${ALL_START}:${end}/${encodeURIComponent(name)}`)
       const j1 = await r1.json()
+      // Brand-new packages often have no download index entry at all. One
+      // request is enough to learn that; skip the daily-range call entirely.
+      if (r1.status === 404 || !j1.downloads) {
+        state.done[name] = true
+        if (++checked % 100 === 0) { saveState(); process.stdout.write(`  …${checked}/${scoped.length} filled\n`) }
+        continue
+      }
       await pace()
       const r2 = await get(`${DL}/range/${historyStart}:${end}/${encodeURIComponent(name)}`)
       const days = r2.status === 404 ? null : (await r2.json()).downloads

@@ -12,6 +12,7 @@ import { writeFileSync, mkdirSync, readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 
 const ROOT = process.cwd()
+const USER = 'mrfentmen'
 const DATA_PATH = join(ROOT, 'public', 'data.json')
 const STATUS_PATH = join(ROOT, 'public', 'status.json')
 const STATE_PATH = join(ROOT, 'patch-state.json')
@@ -38,6 +39,18 @@ async function get(url, tries = 9) {
   }
   throw new Error('HTTP retries exhausted: ' + url)
 }
+/** Registry search sometimes returns HTML under load; retry until JSON. */
+async function searchPage(url) {
+  for (let i = 0; i < 6; i++) {
+    try {
+      const res = await get(url)
+      if ((res.headers.get('content-type') || '').includes('json')) return await res.json()
+    } catch {}
+    await sleep(1500 * (i + 1))
+  }
+  return { objects: [] }
+}
+
 const shift = (iso, days) => new Date(Date.parse(iso + 'T00:00:00Z') - days * 86400000).toISOString().slice(0, 10)
 function windows(start, stop) {
   const out = []
@@ -91,21 +104,29 @@ function apply(name, allTime, days, indexed) {
 
 /* ---------- inventory ---------- */
 const info = new Map()
-let from = 0
+// Authoritative inventory: the registry's user-package index (the search API
+// only sees the older ~5,250 packages and its `total` fluctuates wildly).
+const userPkgs = await (await get(`https://registry.npmjs.org/-/user/${USER}/package`)).json()
+const userNames = new Set(Object.keys(userPkgs))
+let from = 0, pages = 0
 for (;;) {
-  const page = await (await get(`${SEARCH}&size=250&from=${from}`)).json()
-  for (const o of page.objects || []) {
+  const page = await searchPage(`${SEARCH}&size=250&from=${from}`)
+  const objs = page.objects || []
+  for (const o of objs) {
     const p = o.package
-    if (!p || !p.name) continue
+    if (!p || !p.name || !userNames.has(p.name) || info.has(p.name)) continue
     info.set(p.name, {
       name: p.name, description: (p.description || '').replace(/\s+/g, ' ').slice(0, 180),
       published: (p.date || '').slice(0, 10), version: p.version || '',
     })
   }
-  if (!(page.objects || []).length || from + page.objects.length >= page.total) break
-  from += page.objects.length
-  await sleep(200)
+  if (!objs.length || ++pages > 30) break
+  from += objs.length
+  await sleep(300)
 }
+// Newly published packages are not in the search index yet — add them with
+// names only; descriptions can be enriched on a later full refresh.
+for (const n of userNames) if (!info.has(n)) info.set(n, { name: n, description: '', published: '', version: '' })
 // Merge in newly discovered packages; keep snapshot rows that vanished from search.
 for (const [name, meta] of info) {
   if (!byName.has(name)) byName.set(name, {
@@ -121,6 +142,12 @@ console.log(`[1/3] ${byName.size} packages total · ${targets.length} to fill ($
 
 /* ---------- bulk (unscoped) ---------- */
 const bchunks = chunks(bulk, CHUNK)
+// A new batch of unscoped packages may arrive after an earlier patch finished
+// its bulk phase; re-open it so those names get all-time + daily data too.
+if (bulk.length && bulk.some((n) => !state.done[n])) {
+  state.bulkDone = false
+  state.bulkYears = []
+}
 if (!state.bulkDone) {
   for (const [a, b] of windows(ALL_START, end)) {
     const key = `${a}:${b}`

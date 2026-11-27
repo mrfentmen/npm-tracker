@@ -59,6 +59,18 @@ async function get(url, tries = 9) {
   throw new Error('HTTP retries exhausted: ' + url)
 }
 
+/** Registry search can return HTML under load; retry until JSON. */
+async function searchPage(url) {
+  for (let i = 0; i < 6; i++) {
+    try {
+      const res = await get(url)
+      if ((res.headers.get('content-type') || '').includes('json')) return await res.json()
+    } catch {}
+    await sleep(1500 * (i + 1))
+  }
+  return { objects: [] }
+}
+
 let nextBulk = Date.now()
 let nextSingle = Date.now()
 async function bulkPace() {
@@ -200,14 +212,17 @@ function emitData(phase, checked, total, withBadges = false) {
 
 /* ---------------- step 1: package inventory ---------------- */
 const names = new Set()
-let from = 0
+let from = 0, pages = 0
+// Authoritative inventory: registry user-package index, not the flaky search
+// API's `total` (which misses the user's newest publishes).
+const userPkgs = await (await get(`https://registry.npmjs.org/-/user/${USER}/package`)).json()
+for (const n of Object.keys(userPkgs)) names.add(n)
 for (;;) {
-  const res = await get(`${SEARCH}&size=250&from=${from}`)
-  const page = await res.json()
-  for (const o of page.objects || []) {
+  const page = await searchPage(`${SEARCH}&size=250&from=${from}`)
+  const objs = page.objects || []
+  for (const o of objs) {
     const p = o.package
-    if (!p || !p.name || names.has(p.name)) continue
-    names.add(p.name)
+    if (!p || !p.name || !names.has(p.name) || info.has(p.name)) continue
     info.set(p.name, {
       name: p.name,
       description: (p.description || '').replace(/\s+/g, ' ').slice(0, 180),
@@ -215,10 +230,11 @@ for (;;) {
       version: p.version || '',
     })
   }
-  if (!(page.objects || []).length || from + page.objects.length >= page.total) break
-  from += page.objects.length
-  await sleep(200)
+  if (!objs.length || ++pages > 30) break
+  from += objs.length
+  await sleep(300)
 }
+for (const n of names) if (!info.has(n)) info.set(n, { name: n, description: '', published: '', version: '' })
 allNames = [...names]
 const scopedNames = allNames.filter((n) => n.startsWith('@'))
 const bulkNames = allNames.filter((n) => !n.startsWith('@'))
